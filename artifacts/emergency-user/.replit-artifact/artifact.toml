@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/emergency-user/"
+title = "Emergency Buzzer"
+description = "A simple Android emergency buzzer that signs the user in anonymously and sends one reliable alert to a shared Firestore backend."
+version = "1.0.0"
+id = "artifacts/emergency-user"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/emergency-user/" ]
+localPort = 19393
+
+[services.development]
+run = "pnpm --filter @workspace/emergency-user run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/emergency-user", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/emergency-user", "run", "serve" ]
+
+[services.env]
+PORT = "19393"
+BASE_PATH = "/emergency-user/"

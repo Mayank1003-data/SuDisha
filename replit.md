@@ -1,44 +1,50 @@
-# [Project name]
+# Emergency Buzzer System
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+An Android emergency buzzer and browser-based control room that share real-time Firestore alerts.
 
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/emergency-admin run dev` — run the admin web dashboard
+- `pnpm --filter @workspace/emergency-user run dev` — run the Android Expo app
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `PORT=22966 BASE_PATH=/ pnpm --filter @workspace/emergency-admin run build` — production-build the dashboard locally
+- Required Firebase client env values are documented in `.env.example`
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Admin web: React + Vite + Tailwind CSS
+- Android: Expo Router + React Native
+- Backend: Firebase Authentication + Firestore real-time listeners
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/emergency-admin` — signed-in admin dashboard and Firestore listener
+- `artifacts/emergency-user` — single-screen Android buzzer with anonymous Firebase auth
+- `firestore.rules` — security rules for anonymous user creates and admin-only reads/updates
+- `docs/emergency-buzzer-setup.md` — Firebase setup, admin provisioning, and manual test checklist
+- `.env.example` — environment variable names for both clients
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Firestore is the shared real-time backend so the browser and phone do not need a custom server hop.
+- Android users authenticate anonymously; administrators use email/password plus an `admins/{uid}` roster document.
+- Alert IDs are Firestore document IDs and are shown in the control room alongside the originating user ID.
+- The mobile sender uses an in-flight and short time-window guard to prevent rapid duplicate alerts.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Android users can send one emergency buzzer alert and receive immediate confirmation. Authorized administrators can sign in, watch active and resolved alerts in real time, hear a browser notification tone for new active incidents, acknowledge alerts, and resolve them.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Keep the first version focused on the buzzer-to-admin flow; do not add GPS, maps, push notifications, or detection without a new request.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- The admin dashboard remains in configuration mode until `VITE_FIREBASE_*` values are present.
+- The Firebase `admins/{uid}` document is required in addition to an Auth email/password account.
 
 ## Pointers
 

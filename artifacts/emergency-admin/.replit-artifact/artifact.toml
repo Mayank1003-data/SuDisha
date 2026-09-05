@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Emergency Buzzer Admin"
+description = "A real-time admin dashboard for monitoring emergency buzzer alerts, acknowledging incidents, and resolving them securely."
+version = "1.0.0"
+id = "artifacts/emergency-admin"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22966
+
+[services.development]
+run = "pnpm --filter @workspace/emergency-admin run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/emergency-admin", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/emergency-admin/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22966"
+BASE_PATH = "/"
