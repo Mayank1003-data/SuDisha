@@ -119,7 +119,7 @@ function ConfigNotice() {
   );
 }
 
-function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
+function LoginScreen({ onSignedIn }: { onSignedIn: (user: User) => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -136,7 +136,7 @@ function LoginScreen({ onSignedIn }: { onSignedIn: () => void }) {
         await signOut(auth);
         throw new Error('This account is not on the Sentinel admin roster.');
       }
-      onSignedIn();
+      onSignedIn(credential.user);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Sign-in failed. Check your credentials and try again.');
     } finally {
@@ -548,7 +548,9 @@ function DashboardRoute() {
 
   if (!firebaseConfigured) return <ConfigNotice />;
   if (authState === 'loading') return <LoadingScreen />;
-  if (authState === 'signed-out' || authState === 'forbidden') return <LoginScreen onSignedIn={() => setAuthState('loading')} />;
+  if (authState === 'signed-out' || authState === 'forbidden') {
+    return <LoginScreen onSignedIn={(nextUser) => { setUser(nextUser); setAuthState('signed-in'); }} />;
+  }
   if (authState === 'error') return <ConfigNotice />;
   if (!user) return <LoadingScreen />;
   return <Dashboard user={user} onSignOut={() => { if (auth) void signOut(auth); }} />;
