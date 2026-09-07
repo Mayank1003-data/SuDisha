@@ -33,7 +33,7 @@ An Android emergency buzzer and browser-based control room that share real-time 
 - Alert IDs are Firestore document IDs and are shown in the control room alongside the originating user ID.
 - The mobile sender uses an in-flight and short time-window guard to prevent rapid duplicate alerts.
 - The mobile client can mark its own alert `safe`; the owner can read the same alert document so response status changes stream back to the guidance screen.
-- Shelter lookup uses a real foreground GPS permission request and an explicit unavailable state until a verified shelter data source is connected.
+- Shelter lookup uses a real foreground GPS permission request and reads only `verified && active` records from the shared Firestore `shelters` collection.
 - The admin alarm is session-based: a new active alert starts one alarm session, sound must be enabled by operator gesture when autoplay is blocked, and acknowledge/mute stops it.
 
 ## Product
@@ -42,7 +42,7 @@ Android users can send an emergency buzzer alert, receive an SOS guidance screen
 
 ## User preferences
 
-- GPS is used only after an SOS to request a verified nearest-shelter lookup. No shelter provider is configured yet, so the UI must show that shelter information is unavailable rather than inventing a location or distance.
+- GPS is used only after an SOS to request a verified nearest-shelter lookup. When the Firestore `shelters` collection is empty or has no valid active records, the UI shows an unavailable state rather than inventing a location or distance.
 
 ## Gotchas
 

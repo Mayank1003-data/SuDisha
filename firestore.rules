@@ -56,5 +56,15 @@ service cloud.firestore {
 
       allow delete: if false;
     }
+
+    match /shelters/{shelterId} {
+      allow read: if isAdmin()
+        || (
+          signedIn()
+          && resource.data.verified == true
+          && resource.data.active == true
+        );
+      allow write: if false;
+    }
   }
 }
