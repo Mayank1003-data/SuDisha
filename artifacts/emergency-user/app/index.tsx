@@ -354,7 +354,11 @@ function GuidanceScreen({
           accessibilityRole="button"
           disabled={savingSafe}
           onPress={onMarkSafe}
-          style={[styles.safeButton, savingSafe && styles.buttonDisabled]}
+          style={({ pressed }) => [
+            styles.safeButton,
+            pressed && !savingSafe && styles.safeButtonPressed,
+            savingSafe && styles.buttonDisabled,
+          ]}
           testID="button-i-am-safe"
         >
           {savingSafe ? <ActivityIndicator color={colors.background} /> : <Feather name="shield" size={20} color={colors.background} />}
@@ -884,6 +888,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: colors.success,
     marginTop: 16,
+  },
+  safeButtonPressed: {
+    opacity: 0.78,
+    transform: [{ scale: 0.985 }],
   },
   safeButtonText: {
     color: colors.background,

@@ -469,13 +469,33 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const resolvedCount = useMemo(() => alerts.filter((alert) => alert.status === 'resolved').length, [alerts]);
   const safeCount = useMemo(() => alerts.filter((alert) => alert.status === 'safe').length, [alerts]);
 
+  useEffect(() => {
+    if (activeCount === 0 && alarmActiveRef.current) {
+      setAlarmState(false);
+    }
+  }, [activeCount, setAlarmState]);
+
   const action = useCallback(async (id: string, kind: 'acknowledge' | 'resolve') => {
     setBusyId(id);
     setActionError('');
     try {
       if (kind === 'acknowledge') await acknowledgeAlert(id);
       else await resolveAlert(id);
-      if (kind === 'acknowledge') setAlarmState(false);
+      const nextStatus: AlertStatus = kind === 'acknowledge' ? 'acknowledged' : 'resolved';
+      const updatedAt = new Date();
+      setAlerts((currentAlerts) =>
+        currentAlerts.map((alert) =>
+          alert.id === id
+            ? {
+                ...alert,
+                status: nextStatus,
+                ...(kind === 'acknowledge' ? { acknowledgedAt: updatedAt } : { resolvedAt: updatedAt }),
+                lastUpdatedAt: updatedAt,
+              }
+            : alert,
+        ),
+      );
+      setAlarmState(false);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'The update could not be saved.');
     } finally {
