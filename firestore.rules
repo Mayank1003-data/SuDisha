@@ -27,15 +27,32 @@ service cloud.firestore {
         && request.resource.data.status == 'active'
         && request.resource.data.createdAt is timestamp;
 
-      allow read: if isAdmin();
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid);
 
-      allow update: if isAdmin()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'status',
-          'acknowledgedAt',
-          'resolvedAt'
-        ])
-        && request.resource.data.status in ['active', 'acknowledged', 'resolved'];
+      allow update: if (
+          isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status',
+            'acknowledgedAt',
+            'resolvedAt',
+            'safeAt',
+            'lastUpdatedAt'
+          ])
+          && request.resource.data.status in ['active', 'acknowledged', 'resolved', 'safe']
+        )
+        || (
+          signedIn()
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status',
+            'safeAt',
+            'lastUpdatedAt'
+          ])
+          && request.resource.data.status == 'safe'
+          && request.resource.data.safeAt is timestamp
+        );
 
       allow delete: if false;
     }

@@ -10,7 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 
-export type AlertStatus = 'active' | 'acknowledged' | 'resolved';
+export type AlertStatus = 'active' | 'acknowledged' | 'resolved' | 'safe';
 export type EmergencyAlert = {
   id: string;
   userId: string;
@@ -18,6 +18,8 @@ export type EmergencyAlert = {
   status: AlertStatus;
   acknowledgedAt?: Date | string | null;
   resolvedAt?: Date | string | null;
+  safeAt?: Date | string | null;
+  lastUpdatedAt?: Date | string | null;
 };
 
 function toDate(value: unknown): Date | string {
@@ -36,6 +38,8 @@ function parseAlert(id: string, data: Record<string, unknown>): EmergencyAlert {
     status: (data.status as AlertStatus) || 'active',
     acknowledgedAt: data.acknowledgedAt ? toDate(data.acknowledgedAt) : null,
     resolvedAt: data.resolvedAt ? toDate(data.resolvedAt) : null,
+    safeAt: data.safeAt ? toDate(data.safeAt) : null,
+    lastUpdatedAt: data.lastUpdatedAt ? toDate(data.lastUpdatedAt) : null,
   };
 }
 
@@ -60,6 +64,7 @@ export async function acknowledgeAlert(alertId: string): Promise<void> {
   await updateDoc(doc(db, 'alerts', alertId), {
     status: 'acknowledged',
     acknowledgedAt: serverTimestamp(),
+    lastUpdatedAt: serverTimestamp(),
   });
 }
 
@@ -68,5 +73,6 @@ export async function resolveAlert(alertId: string): Promise<void> {
   await updateDoc(doc(db, 'alerts', alertId), {
     status: 'resolved',
     resolvedAt: serverTimestamp(),
+    lastUpdatedAt: serverTimestamp(),
   });
 }

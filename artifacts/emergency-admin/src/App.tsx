@@ -16,6 +16,8 @@ import {
   UserRound,
   Wifi,
   WifiOff,
+  Volume2,
+  VolumeX,
   X,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -65,11 +67,24 @@ function getInitials(email: string) {
   return local.slice(0, 2).toUpperCase();
 }
 
-function playAlertTone() {
+let alarmContext: AudioContext | null = null;
+let alarmInterval: number | null = null;
+
+function getAlarmContext() {
   try {
     const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
-    const context = new AudioContextClass();
+    alarmContext ??= new AudioContextClass();
+    return alarmContext;
+  } catch {
+    return;
+  }
+}
+
+function playAlertTone() {
+  try {
+    const context = getAlarmContext();
+    if (!context || context.state !== 'running') return;
     const oscillator = context.createOscillator();
     const gain = context.createGain();
     oscillator.type = 'sine';
@@ -82,9 +97,32 @@ function playAlertTone() {
     gain.connect(context.destination);
     oscillator.start();
     oscillator.stop(context.currentTime + 0.28);
-    window.setTimeout(() => void context.close(), 500);
   } catch {
     // Audio can be blocked until the operator interacts with the page.
+  }
+}
+
+function startAlertAlarm() {
+  stopAlertAlarm();
+  playAlertTone();
+  alarmInterval = window.setInterval(playAlertTone, 1200);
+}
+
+function stopAlertAlarm() {
+  if (alarmInterval !== null) {
+    window.clearInterval(alarmInterval);
+    alarmInterval = null;
+  }
+}
+
+async function unlockAlertSound() {
+  const context = getAlarmContext();
+  if (!context) return false;
+  try {
+    if (context.state === 'suspended') await context.resume();
+    return context.state === 'running';
+  } catch {
+    return false;
   }
 }
 
@@ -254,11 +292,12 @@ function StatusBadge({ status }: { status: AlertStatus }) {
     active: 'border-accent/25 bg-accent/10 text-accent',
     acknowledged: 'border-primary/20 bg-primary/10 text-primary',
     resolved: 'border-border bg-muted text-muted-foreground',
+    safe: 'border-primary/20 bg-primary/10 text-primary',
   };
-  const labels: Record<AlertStatus, string> = { active: 'Needs response', acknowledged: 'Acknowledged', resolved: 'Resolved' };
+  const labels: Record<AlertStatus, string> = { active: 'Needs response', acknowledged: 'Acknowledged', resolved: 'Resolved', safe: 'User marked safe' };
   return (
     <span data-testid={`status-alert-${status}`} className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-[0.08em] ${styles[status]}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${status === 'active' ? 'bg-accent' : status === 'acknowledged' ? 'bg-primary' : 'bg-muted-foreground'}`} />
+      <span className={`h-1.5 w-1.5 rounded-full ${status === 'active' ? 'bg-accent' : status === 'acknowledged' || status === 'safe' ? 'bg-primary' : 'bg-muted-foreground'}`} />
       {labels[status]}
     </span>
   );
@@ -284,8 +323,8 @@ function AlertRow({
       {isActive && <div className="absolute inset-y-0 left-0 w-1 bg-accent" />}
       <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div className="flex min-w-0 items-start gap-4">
-          <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${isActive ? 'bg-accent/12 text-accent alert-pulse' : alert.status === 'acknowledged' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-            {isActive ? <Bell size={20} /> : alert.status === 'acknowledged' ? <CheckCircle2 size={20} /> : <Check size={20} />}
+           <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${isActive ? 'bg-accent/12 text-accent alert-pulse' : alert.status === 'acknowledged' || alert.status === 'safe' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+            {isActive ? <Bell size={20} /> : alert.status === 'acknowledged' ? <CheckCircle2 size={20} /> : alert.status === 'safe' ? <ShieldCheck size={20} /> : <Check size={20} />}
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
@@ -335,6 +374,11 @@ function AlertRow({
           Resolved at {formatTime(alert.resolvedAt)}
         </div>
       )}
+      {alert.status === 'safe' && alert.safeAt && (
+        <div className="border-t border-border/70 bg-primary/[0.025] px-5 py-2.5 text-[11px] text-muted-foreground sm:px-6">
+          User marked safe at {formatTime(alert.safeAt)}
+        </div>
+      )}
     </article>
   );
 }
@@ -362,14 +406,45 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const [listenerError, setListenerError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState('');
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [soundPending, setSoundPending] = useState(false);
+  const [alarmActive, setAlarmActive] = useState(false);
   const knownAlertIds = useRef<Set<string> | null>(null);
+  const soundEnabledRef = useRef(false);
+  const alarmActiveRef = useRef(false);
   const [now, setNow] = useState(new Date());
+
+  const setAlarmState = useCallback((active: boolean) => {
+    alarmActiveRef.current = active;
+    setAlarmActive(active);
+    if (!active) {
+      setSoundPending(false);
+      stopAlertAlarm();
+    }
+  }, []);
+
+  const enableSound = useCallback(async () => {
+    const enabled = await unlockAlertSound();
+    if (!enabled) {
+      setActionError('Browser audio is still blocked. Click Enable sound again after interacting with this page.');
+      return;
+    }
+    soundEnabledRef.current = true;
+    setSoundEnabled(true);
+    setSoundPending(false);
+    if (alarmActiveRef.current) startAlertAlarm();
+    else playAlertTone();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = subscribeToAlerts((nextAlerts) => {
       if (knownAlertIds.current) {
         const newIncident = nextAlerts.some((alert) => alert.status === 'active' && !knownAlertIds.current?.has(alert.id));
-        if (newIncident) playAlertTone();
+        if (newIncident) {
+          setAlarmState(true);
+          if (soundEnabledRef.current) startAlertAlarm();
+          else setSoundPending(true);
+        }
       }
       knownAlertIds.current = new Set(nextAlerts.map((alert) => alert.id));
       setAlerts(nextAlerts);
@@ -380,7 +455,9 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
       setListenerError(error.message || 'Live alert channel unavailable.');
     });
     return unsubscribe;
-  }, []);
+  }, [setAlarmState]);
+
+  useEffect(() => () => stopAlertAlarm(), []);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 30000);
@@ -390,6 +467,7 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const activeCount = useMemo(() => alerts.filter((alert) => alert.status === 'active').length, [alerts]);
   const acknowledgedCount = useMemo(() => alerts.filter((alert) => alert.status === 'acknowledged').length, [alerts]);
   const resolvedCount = useMemo(() => alerts.filter((alert) => alert.status === 'resolved').length, [alerts]);
+  const safeCount = useMemo(() => alerts.filter((alert) => alert.status === 'safe').length, [alerts]);
 
   const action = useCallback(async (id: string, kind: 'acknowledge' | 'resolve') => {
     setBusyId(id);
@@ -397,12 +475,13 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     try {
       if (kind === 'acknowledge') await acknowledgeAlert(id);
       else await resolveAlert(id);
+      if (kind === 'acknowledge') setAlarmState(false);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'The update could not be saved.');
     } finally {
       setBusyId(null);
     }
-  }, []);
+  }, [setAlarmState]);
 
   return (
     <div className="noise min-h-[100dvh] bg-background">
@@ -443,6 +522,27 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
               <p className="mt-1 text-sm font-semibold text-foreground">Live alert desk</p>
             </div>
             <div className="flex items-center gap-3">
+              {!soundEnabled ? (
+                <button
+                  data-testid="button-enable-sound"
+                  onClick={() => void enableSound()}
+                  className="hidden items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-[11px] font-bold text-accent transition hover:bg-accent hover:text-accent-foreground sm:flex"
+                >
+                  <Volume2 size={13} /> Enable sound
+                </button>
+              ) : alarmActive ? (
+                <button
+                  data-testid="button-stop-alarm"
+                  onClick={() => setAlarmState(false)}
+                  className="hidden items-center gap-2 rounded-full border border-accent/30 bg-accent px-3 py-1.5 text-[11px] font-bold text-accent-foreground transition hover:brightness-95 sm:flex"
+                >
+                  <VolumeX size={13} /> Stop alarm
+                </button>
+              ) : (
+                <span className="hidden items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-[11px] font-semibold text-primary sm:flex">
+                  <Volume2 size={13} /> Sound enabled
+                </span>
+              )}
               <div className="hidden items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-[11px] font-semibold text-primary sm:flex">
                 <Wifi size={13} /> Live channel
               </div>
@@ -465,16 +565,34 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
             <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground"><span className="font-mono">{alerts.length}</span> total alerts received</div>
           </section>
 
-          <section className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <section className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Active" value={activeCount} tone="accent" icon={Bell} />
             <SummaryCard label="Acknowledged" value={acknowledgedCount} tone="primary" icon={Check} />
             <SummaryCard label="Resolved" value={resolvedCount} tone="muted" icon={CheckCircle2} />
+            <SummaryCard label="Safe" value={safeCount} tone="primary" icon={ShieldCheck} />
           </section>
 
           {activeCount > 0 && (
             <div data-testid="banner-active-alerts" className="mt-7 flex items-center gap-3 rounded-xl border border-accent/25 bg-accent/8 px-4 py-3 text-sm text-accent">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"><Bell size={14} /></div>
               <span><strong>{activeCount} active {activeCount === 1 ? 'alert' : 'alerts'}</strong> need a response from the desk.</span>
+            </div>
+          )}
+          {(alarmActive || soundPending) && (
+            <div data-testid="banner-alarm-status" className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-accent">
+              <span className="flex items-center gap-2">
+                {soundPending ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                {soundPending ? 'New SOS detected. Enable sound to hear the response alarm.' : 'Emergency alarm is active for the new SOS.'}
+              </span>
+              {soundPending ? (
+                <button onClick={() => void enableSound()} className="rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground">
+                  Enable sound
+                </button>
+              ) : (
+                <button onClick={() => setAlarmState(false)} className="rounded-lg border border-accent/30 px-3 py-1.5 text-xs font-bold hover:bg-accent/15">
+                  Mute / stop alarm
+                </button>
+              )}
             </div>
           )}
 

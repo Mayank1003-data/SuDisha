@@ -11,9 +11,11 @@ The alert document shape is:
 alerts/{alertId}
   userId: string
   createdAt: timestamp
-  status: "active" | "acknowledged" | "resolved"
+  status: "active" | "acknowledged" | "resolved" | "safe"
   acknowledgedAt: timestamp | null
   resolvedAt: timestamp | null
+  safeAt: timestamp | null
+  lastUpdatedAt: timestamp | null
 ```
 
 ## 1. Create the Firebase project
@@ -40,7 +42,9 @@ alerts/{alertId}
 4. The document can contain `{ "role": "admin" }`.
 5. Use the same email and password in the web dashboard login.
 
-Admin users can read all alerts and change alert status. Android users sign in anonymously and can create alerts only for their own anonymous UID. Alert documents cannot be deleted from either client.
+Admin users can read all alerts and change alert status. Android users sign in anonymously, can create alerts only for their own anonymous UID, can read their own alert, and can update their own alert to `safe`. Alert documents cannot be deleted from either client.
+
+The mobile app requests foreground location permission after an SOS. There is currently no verified shelter data provider configured, so it deliberately shows `Shelter information unavailable` rather than inventing a shelter or distance.
 
 ## 3. Run the clients
 
@@ -48,7 +52,7 @@ From the project root:
 
 ```bash
 pnpm --filter @workspace/emergency-admin run dev
-pnpm --filter @workspace/emergency-user run start
+pnpm --filter @workspace/emergency-user run dev
 ```
 
 Use the Replit preview for the admin dashboard. For the phone app, scan the Expo QR code with Expo Go while the phone and development machine can reach the Expo dev server.
@@ -59,8 +63,12 @@ Use the Replit preview for the admin dashboard. For the phone app, scan the Expo
 2. Sign in with the Firebase admin account.
 3. Open the Expo app on an Android phone.
 4. Tap **EMERGENCY BUZZER** once.
-5. Confirm the phone shows `Emergency alert sent.`.
-6. Confirm a new red active alert appears in the desktop dashboard and the browser plays its short notification sound when audio is allowed.
-7. Click **Acknowledge**, then **Resolve**. Both changes should appear without refreshing.
+5. Confirm the app opens the Emergency Guidance screen with the alert ID and SOS status.
+6. Confirm a new active alert appears in the desktop dashboard.
+7. Click **Enable sound** in the dashboard when prompted, then confirm a new SOS starts the browser alarm.
+8. Click **Acknowledge** and confirm the alarm stops.
+9. On the phone, review the shelter-unavailable state and emergency DOs and DON'Ts.
+10. Tap **I AM SAFE** and confirm the dashboard changes to `User marked safe` without refreshing.
+11. Click **Resolve** from the dashboard. The status should become `Resolved`.
 
 Firebase web configuration values are client-safe identifiers, not admin credentials. Never put a Firebase Admin SDK service-account JSON file or a password in the client apps.

@@ -22,7 +22,7 @@ An Android emergency buzzer and browser-based control room that share real-time 
 
 - `artifacts/emergency-admin` — signed-in admin dashboard and Firestore listener
 - `artifacts/emergency-user` — single-screen Android buzzer with anonymous Firebase auth
-- `firestore.rules` — security rules for anonymous user creates and admin-only reads/updates
+- `firestore.rules` — security rules for anonymous user creates, owner SAFE updates, and admin reads/updates
 - `docs/emergency-buzzer-setup.md` — Firebase setup, admin provisioning, and manual test checklist
 - `.env.example` — environment variable names for both clients
 
@@ -32,19 +32,23 @@ An Android emergency buzzer and browser-based control room that share real-time 
 - Android users authenticate anonymously; administrators use email/password plus an `admins/{uid}` roster document.
 - Alert IDs are Firestore document IDs and are shown in the control room alongside the originating user ID.
 - The mobile sender uses an in-flight and short time-window guard to prevent rapid duplicate alerts.
+- The mobile client can mark its own alert `safe`; the owner can read the same alert document so response status changes stream back to the guidance screen.
+- Shelter lookup uses a real foreground GPS permission request and an explicit unavailable state until a verified shelter data source is connected.
+- The admin alarm is session-based: a new active alert starts one alarm session, sound must be enabled by operator gesture when autoplay is blocked, and acknowledge/mute stops it.
 
 ## Product
 
-Android users can send one emergency buzzer alert and receive immediate confirmation. Authorized administrators can sign in, watch active and resolved alerts in real time, hear a browser notification tone for new active incidents, acknowledge alerts, and resolve them.
+Android users can send an emergency buzzer alert, receive an SOS guidance screen, view the alert status, mark themselves safe, and review emergency DOs and DON'Ts. Authorized administrators can sign in, watch active, acknowledged, resolved, and safe alerts in real time, enable or stop an alarm for new incidents, acknowledge alerts, and resolve them.
 
 ## User preferences
 
-- Keep the first version focused on the buzzer-to-admin flow; do not add GPS, maps, push notifications, or detection without a new request.
+- GPS is used only after an SOS to request a verified nearest-shelter lookup. No shelter provider is configured yet, so the UI must show that shelter information is unavailable rather than inventing a location or distance.
 
 ## Gotchas
 
 - The admin dashboard remains in configuration mode until `VITE_FIREBASE_*` values are present.
 - The Firebase `admins/{uid}` document is required in addition to an Auth email/password account.
+- After changing `firestore.rules`, publish the updated rules in Firebase Console before testing the mobile SAFE action.
 
 ## Pointers
 
