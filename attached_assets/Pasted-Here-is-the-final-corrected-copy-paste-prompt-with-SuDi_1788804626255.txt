@@ -1,0 +1,294 @@
+Here is the **final corrected copy-paste prompt** with **SuDisha** already inserted:
+
+Update the existing **SuDisha emergency/disaster safety app**. Do NOT rebuild the application from scratch and do NOT remove or break any existing Firebase, Firestore, authentication, SOS, admin/NDRF dashboard, or offline functionality.
+
+Implement the following features in this version.
+
+## 1. I AM SAFE Button
+
+After the user successfully sends an SOS, show an **"I AM SAFE"** button.
+
+When the user taps it:
+
+* Show a separate confirmation/safety display.
+* Clearly tell the user that they have marked themselves as safe.
+* Update the existing emergency alert status in Firestore to `safe`.
+* Store the time when the user marked themselves safe.
+* The admin/NDRF dashboard must receive and display this status through the existing real-time Firestore system.
+
+### FUTURE FAMILY-SAFETY FEATURE
+
+On the new safety/confirmation display, include an additional **"I AM SAFE"** button/section as part of the UI structure if required for future development.
+
+However, **DO NOT implement family-member notifications in this version.**
+
+In a future version, this functionality will be used to send a notification to the family members/emergency contacts of the person who has marked themselves safe.
+
+For this version, only implement:
+
+* User marks themselves SAFE.
+* Firestore status is updated.
+* Admin/NDRF dashboard sees the SAFE status.
+
+---
+
+## 2. Limited SOS Tap Attempts
+
+Prevent accidental repeated SOS requests.
+
+Requirements:
+
+* One SOS press should create only one emergency alert.
+* Rapid/repeated taps must NOT create duplicate alerts.
+* Disable the SOS button while the request is being processed.
+* After a successful SOS, apply a reasonable cooldown.
+* Display a clear message explaining that the SOS has already been sent.
+* After the cooldown, allow the user to send another SOS if genuinely necessary.
+* Keep the existing unique alert ID system.
+
+Do not permanently disable the SOS button.
+
+---
+
+## 3. Alarm Sound for Response Network
+
+On the **admin/NDRF response dashboard**, add an emergency alarm sound when a **new SOS alert** arrives.
+
+Requirements:
+
+* Detect new SOS alerts using the existing Firestore real-time listener.
+* Play the emergency alarm when a genuinely NEW SOS arrives.
+* Do not repeatedly trigger the alarm for every Firestore update to the same alert.
+* Add a clear **Mute/Stop Alarm** button.
+* When the administrator acknowledges the SOS, the alarm should stop.
+* Keep the existing browser notification functionality.
+* Handle browser autoplay restrictions properly by providing an **Enable Sound** button if necessary.
+
+The alarm should be for the **response/admin network**, not the normal user's SOS interface.
+
+---
+
+## 4. Post-SOS Emergency Guidance Screen
+
+Immediately after an SOS request is successfully sent, show a dedicated **Emergency Guidance** screen.
+
+Do not show only:
+
+> "Request sent."
+
+The screen must help the user understand what to do next.
+
+Show:
+
+### SOS STATUS
+
+* SOS Sent
+* Alert ID
+* Time sent
+* Current response status
+* Response network acknowledgement status
+
+Then provide:
+
+### NEAREST SAFE SHELTER
+
+Display the nearest available shelter/safe location based on the user's **GPS location**.
+
+Show:
+
+* Shelter name
+* Distance
+* Address/location
+* Navigation/directions option if available
+
+If GPS, internet, or shelter data is unavailable, clearly show an appropriate fallback message.
+
+**Do NOT invent shelter locations or distances.**
+
+If offline/cached shelter data already exists in the application, use that data when internet access is unavailable.
+
+If no shelter database/API currently exists, create the UI/data structure needed for future integration and clearly show an appropriate "Shelter information unavailable" state.
+
+---
+
+## 5. Emergency DOs and DON'Ts
+
+The Emergency Guidance screen must show simple emergency safety instructions.
+
+### DO
+
+* Stay calm.
+* Follow official emergency instructions.
+* Move toward a verified safe shelter when evacuation is advised.
+* Keep your phone charged and conserve battery.
+* Keep emergency contacts informed when possible.
+* Stay with your family/group when it is safe to do so.
+* Follow instructions from authorized rescue personnel.
+
+### DON'T
+
+* Don't panic or rush into dangerous areas.
+* Don't enter damaged buildings.
+* Don't spread unverified emergency information.
+* Don't block roads needed by emergency vehicles.
+* Don't unnecessarily drain your phone battery.
+* Don't return to a dangerous area until authorities declare it safe.
+
+Keep the instructions short, highly readable, and useful during an actual emergency.
+
+---
+
+## 6. User Flow
+
+The final user flow should be:
+
+**Emergency Buzzer**
+↓
+**SOS Confirmation**
+↓
+**SOS Successfully Sent**
+↓
+**Emergency Guidance Screen**
+↓
+**Nearest Shelter + DOs & DON'Ts**
+↓
+**I AM SAFE**
+↓
+**User Marked SAFE**
+↓
+**Admin/NDRF Dashboard Updated**
+
+The family-member notification functionality is **NOT part of this version**.
+
+---
+
+## 7. Admin/NDRF Dashboard Flow
+
+When a user sends an SOS:
+
+**NEW SOS**
+→ Emergency alarm sounds
+→ Admin sees emergency alert
+→ Admin acknowledges
+→ Alarm stops
+→ Admin monitors the alert
+
+When the user selects **I AM SAFE**:
+
+**USER MARKED SAFE**
+→ Firestore status changes
+→ Admin dashboard updates in real time
+
+Keep the existing:
+
+* Active alerts
+* Acknowledged alerts
+* Resolved alerts
+* Real-time Firestore updates
+
+---
+
+## 8. Firestore Integration
+
+Use the existing Firestore alert document.
+
+Where appropriate, update/add fields such as:
+
+* `status`
+* `safeAt`
+* `acknowledgedAt`
+* `resolvedAt`
+* `lastUpdatedAt`
+
+Do NOT create a second database or separate SOS system.
+
+Maintain the existing Firestore security model:
+
+* Users can only perform actions permitted for their own alerts.
+* Admins can access and manage emergency alerts.
+* Unauthorized users cannot access other users' emergency information.
+* Clients cannot delete emergency alerts.
+
+Update Firestore rules only if required for the new SAFE status functionality.
+
+---
+
+## 9. Safety & Reliability
+
+Do not falsely tell the user that NDRF/rescue authorities received an SOS unless the system actually confirms delivery.
+
+Use accurate statuses such as:
+
+* SOS Sending
+* SOS Sent
+* Waiting for Response
+* Acknowledged
+* User Marked SAFE
+* Resolved
+
+Do not fabricate:
+
+* GPS coordinates
+* Shelter locations
+* Shelter distances
+* Rescue responses
+* NDRF notifications
+* Authority responses
+
+---
+
+## 10. UI/UX
+
+Keep the existing **SuDisha** design and emergency-focused interface.
+
+Prioritize:
+
+* Large buttons
+* High contrast
+* Simple language
+* Clear emergency status
+* Large **I AM SAFE** button
+* Easy access to nearest shelter
+* Easy-to-read DOs & DON'Ts
+* Minimal unnecessary animations
+* Fast and simple interaction during emergencies
+
+The user should be able to understand what to do within a few seconds.
+
+---
+
+## 11. Do Not Break Existing Features
+
+Preserve all existing:
+
+* Firebase configuration
+* Firebase Authentication
+* Anonymous authentication
+* Admin authentication
+* Firestore database
+* Firestore security rules
+* Real-time `onSnapshot()` updates
+* Unique SOS alert IDs
+* Admin/NDRF dashboard
+* Existing offline functionality
+* Existing SuDisha UI/theme
+
+Use the existing architecture rather than creating duplicate systems.
+
+After implementation:
+
+1. Run the existing type-check.
+2. Run the existing build/tests.
+3. Fix any errors introduced by these changes.
+4. Verify that existing functionality still works.
+
+At the end, provide a concise summary of:
+
+* Files changed
+* Features implemented
+* Firestore changes
+* SOS cooldown behavior
+* Alarm behavior
+* SAFE status behavior
+* Shelter implementation
+* Any API/data/configuration that I still need to provide
