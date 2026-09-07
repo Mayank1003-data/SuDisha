@@ -183,12 +183,14 @@ function ShelterCard({
   shelter,
   message,
   canAskAgain,
+  permissionDenied,
   onRetry,
 }: {
   status: LocationStatus;
   shelter: Shelter | null;
   message: string;
   canAskAgain: boolean;
+  permissionDenied: boolean;
   onRetry: () => void;
 }) {
   return (
@@ -219,7 +221,7 @@ function ShelterCard({
           <Text style={styles.helperText}>
             This app will only show shelter names and distances from a verified shelter source.
           </Text>
-          {!canAskAgain ? (
+          {permissionDenied ? (
             <Text style={styles.permissionNotice}>
               Location permission is missing or insufficient. Enable location access in Android Settings to retry.
             </Text>
@@ -250,6 +252,7 @@ function GuidanceScreen({
   shelter,
   shelterMessage,
   locationCanAskAgain,
+  locationPermissionDenied,
   onMarkSafe,
   onSendAnother,
   onRetryLocation,
@@ -262,6 +265,7 @@ function GuidanceScreen({
   shelter: Shelter | null;
   shelterMessage: string;
   locationCanAskAgain: boolean;
+  locationPermissionDenied: boolean;
   onMarkSafe: () => void;
   onSendAnother: () => void;
   onRetryLocation: () => void;
@@ -313,6 +317,7 @@ function GuidanceScreen({
         shelter={shelter}
         message={shelterMessage}
         canAskAgain={locationCanAskAgain}
+        permissionDenied={locationPermissionDenied}
         onRetry={onRetryLocation}
       />
 
@@ -396,6 +401,7 @@ export default function EmergencyScreen() {
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('idle');
   const [locationCanAskAgain, setLocationCanAskAgain] = useState(true);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
   const [shelter, setShelter] = useState<Shelter | null>(null);
   const [shelterMessage, setShelterMessage] = useState('Shelter information is unavailable until a verified shelter source is connected.');
 
@@ -440,6 +446,7 @@ export default function EmergencyScreen() {
     try {
       if (Platform.OS === 'web') {
         setLocationCanAskAgain(false);
+        setLocationPermissionDenied(false);
         setLocationStatus('unavailable');
         setShelterMessage('GPS shelter lookup is available in the Android app. This web preview does not have the native location capability.');
         return;
@@ -448,11 +455,13 @@ export default function EmergencyScreen() {
       const permission = await Location.requestForegroundPermissionsAsync();
       setLocationCanAskAgain(permission.canAskAgain);
       if (permission.status !== 'granted') {
+        setLocationPermissionDenied(true);
         setLocationStatus('unavailable');
         setShelterMessage('Location permission is missing or insufficient, so a nearest shelter cannot be calculated.');
         return;
       }
 
+      setLocationPermissionDenied(false);
       const position = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
@@ -540,6 +549,7 @@ export default function EmergencyScreen() {
           shelter={shelter}
           shelterMessage={shelterMessage}
           locationCanAskAgain={locationCanAskAgain}
+          locationPermissionDenied={locationPermissionDenied}
           onMarkSafe={() => void handleMarkSafe()}
           onSendAnother={() => void handleEmergencyPress()}
           onRetryLocation={() => void loadShelterInfo()}
