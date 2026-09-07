@@ -77,6 +77,20 @@ function statusColor(status: AlertStatus) {
   return colors.primary;
 }
 
+function friendlyError(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : '';
+  const code =
+    error && typeof error === 'object' && 'code' in error
+      ? String((error as { code?: unknown }).code)
+      : '';
+
+  if (code === 'permission-denied' || /missing or insufficient permissions/i.test(message)) {
+    return 'This alert action was blocked by Firestore permissions. Publish the latest firestore.rules, then try again.';
+  }
+
+  return message || fallback;
+}
+
 function BrandHeader() {
   return (
     <View style={styles.brandRow}>
@@ -205,6 +219,11 @@ function ShelterCard({
           <Text style={styles.helperText}>
             This app will only show shelter names and distances from a verified shelter source.
           </Text>
+          {!canAskAgain ? (
+            <Text style={styles.permissionNotice}>
+              Location permission is missing or insufficient. Enable location access in Android Settings to retry.
+            </Text>
+          ) : null}
           <View style={styles.shelterActions}>
             <Pressable style={styles.secondaryButton} onPress={onRetry} testID="button-retry-location">
               <Feather name="refresh-cw" size={15} color={colors.foreground} />
@@ -410,7 +429,7 @@ export default function EmergencyScreen() {
     return subscribeToAlert(
       currentAlert.id,
       (nextAlert) => setCurrentAlert(nextAlert),
-      (nextError) => setError(nextError.message),
+      (nextError) => setError(friendlyError(nextError, 'Unable to read the current alert status.')),
     );
   }, [currentAlert?.id]);
 
@@ -430,7 +449,7 @@ export default function EmergencyScreen() {
       setLocationCanAskAgain(permission.canAskAgain);
       if (permission.status !== 'granted') {
         setLocationStatus('unavailable');
-        setShelterMessage('Location permission was not granted, so a nearest shelter cannot be calculated.');
+        setShelterMessage('Location permission is missing or insufficient, so a nearest shelter cannot be calculated.');
         return;
       }
 
@@ -480,9 +499,7 @@ export default function EmergencyScreen() {
       setCooldownUntil(Date.now() + DUPLICATE_WINDOW_MS);
       setSent(true);
     } catch (caught) {
-      const nextError =
-        caught instanceof Error ? caught.message : 'Unable to send the alert.';
-      setError(nextError);
+      setError(friendlyError(caught, 'Unable to send the alert.'));
     } finally {
       setSending(false);
     }
@@ -496,7 +513,7 @@ export default function EmergencyScreen() {
       await markAlertSafe(currentAlert.id);
       setCurrentAlert((previous) => previous ? { ...previous, status: 'safe', safeAt: new Date() } : previous);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to mark this alert safe.');
+      setError(friendlyError(caught, 'Unable to mark this alert safe.'));
     } finally {
       setSavingSafe(false);
     }
@@ -755,6 +772,13 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     marginTop: 10,
     opacity: 0.8,
+  },
+  permissionNotice: {
+    color: colors.error,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    lineHeight: 17,
+    marginTop: 10,
   },
   inlineState: {
     flexDirection: 'row',
