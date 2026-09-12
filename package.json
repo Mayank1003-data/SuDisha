@@ -10,7 +10,9 @@
   },
   "private": true,
   "dependencies": {
-    "@replit/connectors-sdk": "^0.4.1"
+    "@expo/ngrok-bin-win32-x64": "2.3.42",
+    "@replit/connectors-sdk": "^0.4.1",
+    "@rollup/rollup-win32-x64-msvc": "4.62.3"
   },
   "devDependencies": {
     "prettier": "^3.9.6",
